@@ -17,7 +17,7 @@ TLC exhaustively checks these on the bundled configuration:
 
 - **Request Bound.** Active requests at an endpoint stay within that endpoint’s local limit plus the bounds of its immediate downstream endpoints. There is no unbounded queueing inside the service.
 - **Deadlock Freedom.** Every request admitted at Ingress receives a response, assuming processing inside the microservices terminates.
-- **Work Conservation.** Credit requests queue at a microservice only if that microservice, or some downstream of it, is at its local limit. The protocol does not stall a microservice that is not at capacity.
+- **Work Conservation.** Credit requests queue at a microservice only if that microservice, or some downstream of it, has sufficient active requests to exhaust its local limit. The protocol does not stall upstream microservices when there exists no downstream microservice that is at its processing capacity.
 
 ## Run
 
@@ -38,7 +38,7 @@ Changing constants in `RoshanferTest.tla` checks other configurations.
 
 ## Contact
 - Farzad Mohammadi, [f.mohammadi24@imperial.ac.uk](mailto:f.mohammadi24@imperial.ac.uk)
-- Theo Akande, [theo.akande22@imperial.ac.uk](mailto:theo.akande22@imperial.ac.uk)
+- Theo Akande, [theoakande1@gmail.com](mailto:theoakande1@gmail.com)
 
 ## License
 
