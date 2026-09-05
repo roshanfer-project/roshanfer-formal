@@ -1,5 +1,5 @@
 ------------------------ MODULE Roshanfer ------------------------
-EXTENDS Sequences, FiniteSets, Utils, Integers, Bags
+EXTENDS Sequences, FiniteSets, Utils, Integers, Bags, TLC
 
 CONSTANTS 
     EndpointLimits, 
@@ -19,18 +19,18 @@ VARIABLES
     Requested,
     Processing
 
-RECURSIVE Reach(_)
-Reach(se) == 
+RECURSIVE ReachCompute(_)
+ReachCompute(se) == 
     LET ReachH(base, next) == 
-        base \cup next \cup FoldSet(MapSet(next, Reach), \cup, {})
+        base \cup next \cup FoldSet(MapSet(next, ReachCompute), \cup, {})
     IN FoldSeq(ServerDownstreams[se.service][se.endpoint], ReachH, {}) 
 
 ServiceMap(se) == se.service
 
-RECURSIVE TotalEndpointPathLimit(_, _)
-TotalEndpointPathLimit(s, e) == 
+RECURSIVE PathLimitCompute(_, _)
+PathLimitCompute(s, e) == 
     LET 
-        setHelp(x, y) == x + TotalEndpointPathLimit(y.service, y.endpoint)
+        setHelp(x, y) == x + PathLimitCompute(y.service, y.endpoint)
         mapHelp(v) == FoldSet(v, setHelp, 0)
     IN EndpointLimits[s][e] + SeqSum(MapSeq(ServerDownstreams[s][e], mapHelp))
 
@@ -53,7 +53,7 @@ Frontend == 1
 NAPIs == Len(ServerDownstreams[Frontend])
 APIs == 1..NAPIs
 NServers == Len(EndpointLimits)
-NumberOfMessages == [n \in APIs |-> TotalEndpointPathLimit(1, n)]
+NumberOfMessages == [n \in APIs |-> PathLimitCompute(1, n)]
 Servers == 1..NServers
 Agents == Servers
 NEndpoints == [n \in Servers |-> Len(ServerDownstreams[n])]
@@ -65,12 +65,12 @@ NStages == [
     ]
 ]
 Stages == [x \in Servers |-> [y \in Endpoints[x] |-> 1..NStages[x][y]]]
-TotalServerDownstreams == [
+TotalServerDownstreamsCompute == [
     x \in Servers |-> [
         y \in Endpoints[x] |-> FoldSeq(ServerDownstreams[x][y], \cup, {})
     ]
 ]
-CumulativeEndpointWeights == [
+CumulativeEndpointWeightsCompute == [
     x \in DOMAIN EndpointWeights |->
         LET mapHelp(n) == SeqSum(SubSeq(EndpointWeights[x], 1, n))
         IN MapSeq([n \in DOMAIN EndpointWeights[x] |-> n], mapHelp)
@@ -82,8 +82,16 @@ CumulativeEndpoints(s) ==
     IN f[s]
 EndpointIndex(s, e) == IF s = 1 THEN e ELSE CumulativeEndpoints(s - 1) + e
 Acyclic == \A s \in Servers : \A e \in Endpoints[s] : 
-    [service |-> s, endpoint |-> e] \notin Reach([service |-> s, endpoint |-> e])
+    [service |-> s, endpoint |-> e] \notin ReachCompute([service |-> s, endpoint |-> e])
+
 ASSUME Acyclic
+
+\* Constant tables are stored with TLCSet in Init (below) so every
+\* worker inherits them. Keys: 1=Reach, 2=PathLimit, 3=Weights, 4=Downstreams.
+Reach(se) == TLCGet(1)[se.service][se.endpoint]
+TotalEndpointPathLimit(s, e) == TLCGet(2)[s][e]
+CumulativeEndpointWeights == TLCGet(3)
+TotalServerDownstreams == TLCGet(4)
 
 InitialiseIngress(v) == [x \in APIs |-> v]
 Initialise(v) == [x \in Servers |-> v]
@@ -328,6 +336,10 @@ ServerResponse(s, e) ==
 ---------------------------------------------------------------
 
 Init ==
+    /\ TLCSet(1, [s \in Servers |-> [e \in Endpoints[s] |-> ReachCompute([service |-> s, endpoint |-> e])]])
+    /\ TLCSet(2, [s \in Servers |-> [e \in Endpoints[s] |-> PathLimitCompute(s, e)]])
+    /\ TLCSet(3, CumulativeEndpointWeightsCompute)
+    /\ TLCSet(4, TotalServerDownstreamsCompute)
     /\ IngressInit
     /\ AgentInit
     /\ ServerInit
@@ -371,7 +383,7 @@ Conservation ==
 
 ABound == \A s \in Servers : \A e \in Endpoints[s] : ActiveAtServerEndpoint(s, e) \leq Ns[s][e]
 
-NsBound == \A s \in Servers : \A e \in Endpoints[s] : Ns[s][e] \leq TotalEndpointPathLimit(s, e)
+NsBound == \A s \in Servers : \A e \in Endpoints[s] : Ns[s][e] \leq PathLimitCompute(s, e)
 
 THEOREM Spec => 
     /\ AllProcessed
