@@ -35,7 +35,7 @@ The finite model is the configuration in `RoshanferTest.tla` / `RoshanferTest.cf
   - S2.E1: sequential stages {S4.E1} then {S3.E1}
   - S3.E2: one stage, dynamic choice {S4.E2, S2.E2}
   - S2.E2, S3.E1, S4.E1, S4.E2, S5.E1: leaves
-- **Admitted messages** (`NumberOfMessages` = `TotalEndpointPathLimit` at the frontend): 5 on API 1, 4 on API 2.
+- **Admitted messages** (`NumberOfMessages` = `TotalEndpointPathLimit` at the frontend + 1): 6 on API 1, 5 on API 2.
 - **Checked properties:** invariants `Conservation`, `ABound`, `NsBound`; liveness `AllProcessed`.
 
 This covers sequential stages, fan-in/fan-out, dynamic downstream choice, leaf global limits, and multiple concurrent APIs, with all per-endpoint limits set to 1.
