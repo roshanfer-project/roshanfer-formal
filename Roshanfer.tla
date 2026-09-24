@@ -53,7 +53,7 @@ Frontend == 1
 NAPIs == Len(ServerDownstreams[Frontend])
 APIs == 1..NAPIs
 NServers == Len(EndpointLimits)
-NumberOfMessages == [n \in APIs |-> PathLimitCompute(1, n)]
+NumberOfMessages == [n \in APIs |-> PathLimitCompute(1, n) + 1]
 Servers == 1..NServers
 Agents == Servers
 NEndpoints == [n \in Servers |-> Len(ServerDownstreams[n])]
